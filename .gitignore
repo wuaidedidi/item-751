@@ -1,0 +1,5 @@
+backend/target/
+backend/logs/
+logs/
+*.log
+.DS_Store

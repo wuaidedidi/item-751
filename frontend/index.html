@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="企业员工信息管理系统">
+    <title>企业员工信息管理系统</title>
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/modal.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- 侧边栏 -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <div class="sidebar-logo-icon">🏢</div>
+                    <span class="sidebar-logo-text">EMS</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">主菜单</div>
+                    <div class="nav-item active" data-page="dashboard">
+                        <span class="nav-item-icon">📊</span>
+                        <span class="nav-item-text">仪表盘</span>
+                    </div>
+                    <div class="nav-item" data-page="employee">
+                        <span class="nav-item-icon">👥</span>
+                        <span class="nav-item-text">员工管理</span>
+                    </div>
+                    <div class="nav-item" data-page="department">
+                        <span class="nav-item-icon">🏛️</span>
+                        <span class="nav-item-text">部门管理</span>
+                    </div>
+                    <div class="nav-item" data-page="position">
+                        <span class="nav-item-icon">💼</span>
+                        <span class="nav-item-text">职位管理</span>
+                    </div>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">系统设置</div>
+                    <div class="nav-item" data-page="profile">
+                        <span class="nav-item-icon">👤</span>
+                        <span class="nav-item-text">个人中心</span>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="sidebar-user" id="sidebarUser">
+                    <div class="sidebar-user-avatar" id="userAvatar">A</div>
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-name" id="userName">管理员</div>
+                        <div class="sidebar-user-role">系统管理员</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <div class="main-wrapper">
+            <!-- 头部 -->
+            <header class="header">
+                <div class="header-left">
+                    <button class="header-btn" id="menuToggle" style="display: none;">☰</button>
+                    <div class="breadcrumb">
+                        <span>首页</span>
+                        <span class="breadcrumb-separator">/</span>
+                        <span class="breadcrumb-current" id="breadcrumbCurrent">仪表盘</span>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="dropdown" id="userDropdown">
+                        <div class="header-user">
+                            <div class="header-user-avatar" id="headerAvatar">A</div>
+                            <span class="header-user-name" id="headerUserName">管理员</span>
+                        </div>
+                        <div class="dropdown-menu">
+                            <div class="dropdown-item" data-page="profile">
+                                <span>👤</span>
+                                <span>个人中心</span>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <div class="dropdown-item danger" id="logoutBtn">
+                                <span>🚪</span>
+                                <span>退出登录</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 主内容 -->
+            <main class="main-content" id="mainContent">
+                <!-- 内容由JS动态加载 -->
+            </main>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/utils.js"></script>
+    <script>
+        // 全局状态
+        let currentPage = 'dashboard';
+        let departments = [];
+        let positions = [];
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 检查登录状态
+            if (!checkAuth()) return;
+
+            // 初始化用户信息
+            initUserInfo();
+
+            // 加载基础数据
+            await loadBaseData();
+
+            // 初始化导航
+            initNavigation();
+
+            // 初始化用户下拉菜单
+            initUserDropdown();
+
+            // 加载默认页面
+            loadPage('dashboard');
+        });
+
+        function initUserInfo() {
+            const user = TokenManager.getUser();
+            if (user) {
+                const initial = getInitials(user.nickname || user.username);
+                document.getElementById('userAvatar').textContent = initial;
+                document.getElementById('headerAvatar').textContent = initial;
+                document.getElementById('userName').textContent = user.nickname || user.username;
+                document.getElementById('headerUserName').textContent = user.nickname || user.username;
+            }
+        }
+
+        async function loadBaseData() {
+            try {
+                const [deptResult, posResult] = await Promise.all([
+                    DepartmentAPI.getList(),
+                    PositionAPI.getList()
+                ]);
+                departments = deptResult.data || [];
+                positions = posResult.data || [];
+            } catch (error) {
+                console.error('加载基础数据失败:', error);
+            }
+        }
+
+        function initNavigation() {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const page = this.dataset.page;
+                    if (page) {
+                        loadPage(page);
+                    }
+                });
+            });
+        }
+
+        function initUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            const headerUser = dropdown.querySelector('.header-user');
+            
+            headerUser.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdown.classList.toggle('active');
+            });
+
+            document.addEventListener('click', () => {
+                dropdown.classList.remove('active');
+            });
+
+            // 个人中心
+            dropdown.querySelector('[data-page="profile"]').addEventListener('click', () => {
+                loadPage('profile');
+            });
+
+            // 退出登录
+            document.getElementById('logoutBtn').addEventListener('click', async () => {
+                const confirmed = await Confirm.warning('确定要退出登录吗？', '退出登录');
+                if (confirmed) {
+                    logout();
+                }
+            });
+        }
+
+        function loadPage(page) {
+            currentPage = page;
+
+            // 更新导航激活状态
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.page === page);
+            });
+
+            // 更新面包屑
+            const pageNames = {
+                dashboard: '仪表盘',
+                employee: '员工管理',
+                department: '部门管理',
+                position: '职位管理',
+                profile: '个人中心'
+            };
+            document.getElementById('breadcrumbCurrent').textContent = pageNames[page] || page;
+
+            // 加载页面内容
+            const content = document.getElementById('mainContent');
+            
+            switch(page) {
+                case 'dashboard':
+                    renderDashboard(content);
+                    break;
+                case 'employee':
+                    renderEmployeePage(content);
+                    break;
+                case 'department':
+                    renderDepartmentPage(content);
+                    break;
+                case 'position':
+                    renderPositionPage(content);
+                    break;
+                case 'profile':
+                    renderProfilePage(content);
+                    break;
+                default:
+                    content.innerHTML = '<p>页面不存在</p>';
+            }
+        }
+
+        // ==================== 仪表盘 ====================
+        async function renderDashboard(container) {
+            container.innerHTML = `
+                <div class="page-header">
+                    <h1 class="page-title">仪表盘</h1>
+                </div>
+                <div class="dashboard-stats" id="dashboardStats">
+                    <div class="stat-card">
+                        <div class="stat-card-icon primary">👥</div>
+                        <div class="stat-card-value" id="statTotal">-</div>
+                        <div class="stat-card-label">员工总数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-icon success">✓</div>
+                        <div class="stat-card-value" id="statActive">-</div>
+                        <div class="stat-card-label">在职员工</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-icon warning">🏛️</div>
+                        <div class="stat-card-value" id="statDept">-</div>
+                        <div class="stat-card-label">部门数量</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-icon info">💼</div>
+                        <div class="stat-card-value" id="statPos">-</div>
+                        <div class="stat-card-label">职位数量</div>
+                    </div>
+                </div>
+                <div class="quick-actions">
+                    <div class="quick-action-card" onclick="loadPage('employee')">
+                        <div class="quick-action-icon blue">👥</div>
+                        <div class="quick-action-title">员工管理</div>
+                        <div class="quick-action-desc">管理员工信息</div>
+                    </div>
+                    <div class="quick-action-card" onclick="loadPage('department')">
+                        <div class="quick-action-icon green">🏛️</div>
+                        <div class="quick-action-title">部门管理</div>
+                        <div class="quick-action-desc">管理组织架构</div>
+                    </div>
+                    <div class="quick-action-card" onclick="loadPage('position')">
+                        <div class="quick-action-icon orange">💼</div>
+                        <div class="quick-action-title">职位管理</div>
+                        <div class="quick-action-desc">管理职位信息</div>
+                    </div>
+                    <div class="quick-action-card" onclick="loadPage('profile')">
+                        <div class="quick-action-icon purple">👤</div>
+                        <div class="quick-action-title">个人中心</div>
+                        <div class="quick-action-desc">查看个人信息</div>
+                    </div>
+                </div>
+            `;
+
+            try {
+                const result = await DashboardAPI.getData();
+                const data = result.data;
+                document.getElementById('statTotal').textContent = data.employeeStats?.total || 0;
+                document.getElementById('statActive').textContent = data.employeeStats?.active || 0;
+                document.getElementById('statDept').textContent = data.departmentCount || 0;
+                document.getElementById('statPos').textContent = data.positionCount || 0;
+            } catch (error) {
+                Toast.error('加载统计数据失败');
+            }
+        }
+
+        // ==================== 员工管理 ====================
+        let employeeSearchParams = { pageNum: 1, pageSize: 10, keyword: '', departmentId: null, status: null };
+
+        async function renderEmployeePage(container) {
+            container.innerHTML = `
+                <div class="page-header">
+                    <h1 class="page-title">员工管理</h1>
+                    <div class="page-actions">
+                        <button class="btn btn-primary" onclick="showEmployeeModal()">
+                            <span>+</span> 新增员工
+                        </button>
+                    </div>
+                </div>
+                <div class="employee-table-container">
+                    <div class="toolbar" style="padding: 16px;">
+                        <div class="toolbar-left">
+                            <div class="search-bar">
+                                <input type="text" class="search-bar-input" id="employeeSearch" placeholder="搜索姓名、工号、手机号...">
+                                <span class="search-bar-icon">🔍</span>
+                            </div>
+                            <select class="form-select filter-select" id="deptFilter">
+                                <option value="">全部部门</option>
+                                ${departments.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}
+                            </select>
+                            <select class="form-select filter-select" id="statusFilter" style="min-width: 120px;">
+                                <option value="">全部状态</option>
+                                <option value="1">在职</option>
+                                <option value="0">离职</option>
+                            </select>
+                        </div>
+                    </div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>工号</th>
+                                <th>姓名</th>
+                                <th>性别</th>
+                                <th>部门</th>
+                                <th>职位</th>
+                                <th>手机号</th>
+                                <th>入职日期</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employeeTableBody">
+                            <tr><td colspan="9" class="text-center p-lg">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                    <div id="employeePagination"></div>
+                </div>
+            `;
+
+            // 搜索事件
+            const searchInput = document.getElementById('employeeSearch');
+            searchInput.addEventListener('input', debounce(() => {
+                employeeSearchParams.keyword = searchInput.value;
+                employeeSearchParams.pageNum = 1;
+                loadEmployeeList();
+            }, 300));
+
+            // 部门筛选
+            document.getElementById('deptFilter').addEventListener('change', function() {
+                employeeSearchParams.departmentId = this.value || null;
+                employeeSearchParams.pageNum = 1;
+                loadEmployeeList();
+            });
+
+            // 状态筛选
+            document.getElementById('statusFilter').addEventListener('change', function() {
+                employeeSearchParams.status = this.value !== '' ? Number(this.value) : null;
+                employeeSearchParams.pageNum = 1;
+                loadEmployeeList();
+            });
+
+            loadEmployeeList();
+        }
+
+        async function loadEmployeeList() {
+            const tbody = document.getElementById('employeeTableBody');
+            try {
+                const result = await EmployeeAPI.getList(employeeSearchParams);
+                const { list, total, pageNum, pageSize } = result.data;
+
+                if (list.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="9">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">📋</div>
+                                    <div class="empty-state-title">暂无数据</div>
+                                    <div class="empty-state-desc">当前没有符合条件的员工记录</div>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    tbody.innerHTML = list.map(emp => `
+                        <tr>
+                            <td>${emp.employeeNo}</td>
+                            <td>${emp.name}</td>
+                            <td>${getGenderText(emp.gender)}</td>
+                            <td>${emp.departmentName || '-'}</td>
+                            <td>${emp.positionName || '-'}</td>
+                            <td>${emp.phone || '-'}</td>
+                            <td>${formatDate(emp.hireDate)}</td>
+                            <td>${getStatusBadge(emp.status, 'employee')}</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="action-btn edit" onclick="showEmployeeModal(${emp.id})" title="编辑">✏️</button>
+                                    <button class="action-btn delete" onclick="deleteEmployee(${emp.id}, '${emp.name}')" title="删除">🗑️</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+
+                // 分页
+                const paginationHtml = generatePagination(pageNum, pageSize, total);
+                document.getElementById('employeePagination').innerHTML = paginationHtml;
+                
+                // 分页点击事件
+                document.querySelectorAll('#employeePagination .pagination-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        if (!this.disabled) {
+                            employeeSearchParams.pageNum = Number(this.dataset.page);
+                            loadEmployeeList();
+                        }
+                    });
+                });
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger">加载失败: ${error.message}</td></tr>`;
+            }
+        }
+
+        async function showEmployeeModal(id) {
+            const isEdit = !!id;
+            let employee = null;
+
+            if (isEdit) {
+                try {
+                    const result = await EmployeeAPI.getById(id);
+                    employee = result.data;
+                } catch (error) {
+                    Toast.error('获取员工信息失败');
+                    return;
+                }
+            }
+
+            const modal = Modal.create({
+                title: isEdit ? '编辑员工' : '新增员工',
+                content: `
+                    <form id="employeeForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label required">工号</label>
+                                <input type="text" name="employeeNo" class="form-input" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label required">姓名</label>
+                                <input type="text" name="name" class="form-input" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label required">性别</label>
+                                <select name="gender" class="form-select" required>
+                                    <option value="1">男</option>
+                                    <option value="0">女</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">出生日期</label>
+                                <input type="date" name="birthDate" class="form-input">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label required">部门</label>
+                                <select name="departmentId" class="form-select" required>
+                                    <option value="">请选择</option>
+                                    ${departments.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label required">职位</label>
+                                <select name="positionId" class="form-select" required>
+                                    <option value="">请选择</option>
+                                    ${positions.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">手机号</label>
+                                <input type="tel" name="phone" class="form-input" pattern="^1[3-9]\\d{9}$">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">邮箱</label>
+                                <input type="email" name="email" class="form-input">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">入职日期</label>
+                                <input type="date" name="hireDate" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">状态</label>
+                                <select name="status" class="form-select">
+                                    <option value="1">在职</option>
+                                    <option value="0">离职</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">地址</label>
+                            <input type="text" name="address" class="form-input">
+                        </div>
+                    </form>
+                `,
+                footer: `
+                    <button class="btn btn-secondary" onclick="Modal.closeAll()">取消</button>
+                    <button class="btn btn-primary" id="saveEmployeeBtn">保存</button>
+                `,
+                width: '640px'
+            });
+
+            const form = document.getElementById('employeeForm');
+            
+            if (employee) {
+                fillForm(form, employee);
+            }
+
+            document.getElementById('saveEmployeeBtn').addEventListener('click', async () => {
+                const data = getFormData(form);
+                
+                if (!data.employeeNo || !data.name || !data.departmentId || !data.positionId) {
+                    Toast.warning('请填写必填项');
+                    return;
+                }
+
+                try {
+                    if (isEdit) {
+                        await EmployeeAPI.update(id, data);
+                        Toast.success('更新成功');
+                    } else {
+                        await EmployeeAPI.create(data);
+                        Toast.success('新增成功');
+                    }
+                    modal.close();
+                    loadEmployeeList();
+                } catch (error) {
+                    Toast.error(error.message);
+                }
+            });
+        }
+
+        async function deleteEmployee(id, name) {
+            const confirmed = await Confirm.delete(`员工 "${name}"`);
+            if (!confirmed) return;
+
+            try {
+                await EmployeeAPI.delete(id);
+                Toast.success('删除成功');
+                loadEmployeeList();
+            } catch (error) {
+                Toast.error(error.message);
+            }
+        }
+
+        // ==================== 部门管理 ====================
+        async function renderDepartmentPage(container) {
+            container.innerHTML = `
+                <div class="page-header">
+                    <h1 class="page-title">部门管理</h1>
+                    <div class="page-actions">
+                        <button class="btn btn-primary" onclick="showDepartmentModal()">
+                            <span>+</span> 新增部门
+                        </button>
+                    </div>
+                </div>
+                <div class="department-list" id="departmentList">
+                    <div class="text-center p-lg">加载中...</div>
+                </div>
+            `;
+            loadDepartmentList();
+        }
+
+        async function loadDepartmentList() {
+            const listContainer = document.getElementById('departmentList');
+            try {
+                const result = await DepartmentAPI.getList();
+                departments = result.data || [];
+
+                if (departments.length === 0) {
+                    listContainer.innerHTML = `
+                        <div class="empty-state" style="grid-column: 1 / -1;">
+                            <div class="empty-state-icon">🏛️</div>
+                            <div class="empty-state-title">暂无部门</div>
+                            <div class="empty-state-desc">点击上方按钮添加部门</div>
+                        </div>
+                    `;
+                } else {
+                    listContainer.innerHTML = departments.map(dept => `
+                        <div class="department-card">
+                            <div class="department-card-header">
+                                <div>
+                                    <div class="department-card-name">${dept.name}</div>
+                                    <div class="department-card-code">${dept.code || '-'}</div>
+                                </div>
+                                <div class="action-buttons">
+                                    <button class="action-btn edit" onclick="showDepartmentModal(${dept.id})" title="编辑">✏️</button>
+                                    <button class="action-btn delete" onclick="deleteDepartment(${dept.id}, '${dept.name}')" title="删除">🗑️</button>
+                                </div>
+                            </div>
+                            <div class="department-card-desc">${dept.description || '暂无描述'}</div>
+                            <div class="department-card-meta">
+                                <div class="department-card-meta-item">
+                                    <span>👆</span>
+                                    <span>上级: ${dept.parentName || '无'}</span>
+                                </div>
+                                <div class="department-card-meta-item">
+                                    ${getStatusBadge(dept.status)}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                listContainer.innerHTML = `<div class="text-center text-danger p-lg">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        async function showDepartmentModal(id) {
+            const isEdit = !!id;
+            let department = null;
+
+            if (isEdit) {
+                try {
+                    const result = await DepartmentAPI.getById(id);
+                    department = result.data;
+                } catch (error) {
+                    Toast.error('获取部门信息失败');
+                    return;
+                }
+            }
+
+            const modal = Modal.create({
+                title: isEdit ? '编辑部门' : '新增部门',
+                content: `
+                    <form id="departmentForm">
+                        <div class="form-group">
+                            <label class="form-label required">部门名称</label>
+                            <input type="text" name="name" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">部门编码</label>
+                            <input type="text" name="code" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">上级部门</label>
+                            <select name="parentId" class="form-select">
+                                <option value="">无</option>
+                                ${departments.filter(d => d.id !== id).map(d => `<option value="${d.id}">${d.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">描述</label>
+                            <textarea name="description" class="form-textarea" rows="3"></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">排序</label>
+                                <input type="number" name="sortOrder" class="form-input" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">状态</label>
+                                <select name="status" class="form-select">
+                                    <option value="1">正常</option>
+                                    <option value="0">禁用</option>
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                `,
+                footer: `
+                    <button class="btn btn-secondary" onclick="Modal.closeAll()">取消</button>
+                    <button class="btn btn-primary" id="saveDepartmentBtn">保存</button>
+                `,
+                width: '500px'
+            });
+
+            const form = document.getElementById('departmentForm');
+            if (department) {
+                fillForm(form, department);
+            }
+
+            document.getElementById('saveDepartmentBtn').addEventListener('click', async () => {
+                const data = getFormData(form);
+                if (!data.name) {
+                    Toast.warning('请输入部门名称');
+                    return;
+                }
+
+                try {
+                    if (isEdit) {
+                        await DepartmentAPI.update(id, data);
+                        Toast.success('更新成功');
+                    } else {
+                        await DepartmentAPI.create(data);
+                        Toast.success('新增成功');
+                    }
+                    modal.close();
+                    loadDepartmentList();
+                    await loadBaseData();
+                } catch (error) {
+                    Toast.error(error.message);
+                }
+            });
+        }
+
+        async function deleteDepartment(id, name) {
+            const confirmed = await Confirm.delete(`部门 "${name}"`);
+            if (!confirmed) return;
+
+            try {
+                await DepartmentAPI.delete(id);
+                Toast.success('删除成功');
+                loadDepartmentList();
+                await loadBaseData();
+            } catch (error) {
+                Toast.error(error.message);
+            }
+        }
+
+        // ==================== 职位管理 ====================
+        async function renderPositionPage(container) {
+            container.innerHTML = `
+                <div class="page-header">
+                    <h1 class="page-title">职位管理</h1>
+                    <div class="page-actions">
+                        <button class="btn btn-primary" onclick="showPositionModal()">
+                            <span>+</span> 新增职位
+                        </button>
+                    </div>
+                </div>
+                <div class="position-list" id="positionList">
+                    <div class="text-center p-lg">加载中...</div>
+                </div>
+            `;
+            loadPositionList();
+        }
+
+        async function loadPositionList() {
+            const listContainer = document.getElementById('positionList');
+            try {
+                const result = await PositionAPI.getList();
+                positions = result.data || [];
+
+                if (positions.length === 0) {
+                    listContainer.innerHTML = `
+                        <div class="empty-state" style="grid-column: 1 / -1;">
+                            <div class="empty-state-icon">💼</div>
+                            <div class="empty-state-title">暂无职位</div>
+                            <div class="empty-state-desc">点击上方按钮添加职位</div>
+                        </div>
+                    `;
+                } else {
+                    listContainer.innerHTML = positions.map(pos => `
+                        <div class="position-card">
+                            <div class="position-card-icon">💼</div>
+                            <div class="position-card-info">
+                                <div class="position-card-name">${pos.name}</div>
+                                <div class="position-card-desc">${pos.description || pos.code || '暂无描述'}</div>
+                            </div>
+                            <div class="position-card-actions">
+                                <button class="action-btn edit" onclick="showPositionModal(${pos.id})" title="编辑">✏️</button>
+                                <button class="action-btn delete" onclick="deletePosition(${pos.id}, '${pos.name}')" title="删除">🗑️</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                listContainer.innerHTML = `<div class="text-center text-danger p-lg">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        async function showPositionModal(id) {
+            const isEdit = !!id;
+            let position = null;
+
+            if (isEdit) {
+                try {
+                    const result = await PositionAPI.getById(id);
+                    position = result.data;
+                } catch (error) {
+                    Toast.error('获取职位信息失败');
+                    return;
+                }
+            }
+
+            const modal = Modal.create({
+                title: isEdit ? '编辑职位' : '新增职位',
+                content: `
+                    <form id="positionForm">
+                        <div class="form-group">
+                            <label class="form-label required">职位名称</label>
+                            <input type="text" name="name" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">职位编码</label>
+                            <input type="text" name="code" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">描述</label>
+                            <textarea name="description" class="form-textarea" rows="3"></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">排序</label>
+                                <input type="number" name="sortOrder" class="form-input" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">状态</label>
+                                <select name="status" class="form-select">
+                                    <option value="1">正常</option>
+                                    <option value="0">禁用</option>
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                `,
+                footer: `
+                    <button class="btn btn-secondary" onclick="Modal.closeAll()">取消</button>
+                    <button class="btn btn-primary" id="savePositionBtn">保存</button>
+                `,
+                width: '480px'
+            });
+
+            const form = document.getElementById('positionForm');
+            if (position) {
+                fillForm(form, position);
+            }
+
+            document.getElementById('savePositionBtn').addEventListener('click', async () => {
+                const data = getFormData(form);
+                if (!data.name) {
+                    Toast.warning('请输入职位名称');
+                    return;
+                }
+
+                try {
+                    if (isEdit) {
+                        await PositionAPI.update(id, data);
+                        Toast.success('更新成功');
+                    } else {
+                        await PositionAPI.create(data);
+                        Toast.success('新增成功');
+                    }
+                    modal.close();
+                    loadPositionList();
+                    await loadBaseData();
+                } catch (error) {
+                    Toast.error(error.message);
+                }
+            });
+        }
+
+        async function deletePosition(id, name) {
+            const confirmed = await Confirm.delete(`职位 "${name}"`);
+            if (!confirmed) return;
+
+            try {
+                await PositionAPI.delete(id);
+                Toast.success('删除成功');
+                loadPositionList();
+                await loadBaseData();
+            } catch (error) {
+                Toast.error(error.message);
+            }
+        }
+
+        // ==================== 个人中心 ====================
+        function renderProfilePage(container) {
+            const user = TokenManager.getUser();
+            const initial = getInitials(user?.nickname || user?.username);
+
+            container.innerHTML = `
+                <div class="profile-page">
+                    <div class="profile-header">
+                        <div class="profile-avatar">${initial}</div>
+                        <div class="profile-name">${user?.nickname || user?.username || '用户'}</div>
+                        <div class="profile-role">系统管理员</div>
+                    </div>
+                    <div class="profile-section">
+                        <h3 class="profile-section-title">账号信息</h3>
+                        <div class="profile-info-grid">
+                            <div class="profile-info-item">
+                                <span class="profile-info-label">用户名</span>
+                                <span class="profile-info-value">${user?.username || '-'}</span>
+                            </div>
+                            <div class="profile-info-item">
+                                <span class="profile-info-label">昵称</span>
+                                <span class="profile-info-value">${user?.nickname || '-'}</span>
+                            </div>
+                            <div class="profile-info-item">
+                                <span class="profile-info-label">用户ID</span>
+                                <span class="profile-info-value">${user?.id || '-'}</span>
+                            </div>
+                            <div class="profile-info-item">
+                                <span class="profile-info-label">账号状态</span>
+                                <span class="profile-info-value"><span class="badge badge-success">正常</span></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="profile-section">
+                        <h3 class="profile-section-title">操作</h3>
+                        <button class="btn btn-danger" onclick="handleLogout()">退出登录</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function handleLogout() {
+            const confirmed = await Confirm.warning('确定要退出登录吗？', '退出登录');
+            if (confirmed) {
+                logout();
+            }
+        }
+    </script>
+</body>
+</html>

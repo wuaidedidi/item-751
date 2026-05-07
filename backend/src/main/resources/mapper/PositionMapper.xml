@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.enterprise.ems.mapper.PositionMapper">
+
+    <resultMap id="BaseResultMap" type="com.enterprise.ems.entity.Position">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="code" property="code"/>
+        <result column="description" property="description"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="BaseResultMap">
+        SELECT * FROM position ORDER BY sort_order, id
+    </select>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT * FROM position WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO position (name, code, description, sort_order, status, create_time)
+        VALUES (#{name}, #{code}, #{description}, #{sortOrder}, #{status}, NOW())
+    </insert>
+
+    <update id="update">
+        UPDATE position
+        SET name = #{name},
+            code = #{code},
+            description = #{description},
+            sort_order = #{sortOrder},
+            status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM position WHERE id = #{id}
+    </delete>
+
+    <select id="countByName" resultType="int">
+        SELECT COUNT(*) FROM position WHERE name = #{name}
+    </select>
+
+    <select id="countByNameExcludeId" resultType="int">
+        SELECT COUNT(*) FROM position WHERE name = #{name} AND id != #{id}
+    </select>
+
+    <select id="countEmployeeByPositionId" resultType="int">
+        SELECT COUNT(*) FROM employee WHERE position_id = #{positionId}
+    </select>
+</mapper>

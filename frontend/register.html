@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="企业员工信息管理系统 - 用户注册">
+    <title>注册 - 企业员工信息管理系统</title>
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/modal.css">
+    <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+    <div class="login-page">
+        <div class="login-container">
+            <!-- 左侧品牌区域 -->
+            <div class="login-brand">
+                <div class="login-brand-logo">🏢</div>
+                <h1 class="login-brand-title">企业员工信息<br>管理系统</h1>
+                <p class="login-brand-subtitle">
+                    创建账号，开启高效的企业人力资源管理之旅
+                </p>
+                <div class="login-brand-features">
+                    <div class="login-feature">
+                        <div class="login-feature-icon">🚀</div>
+                        <span class="login-feature-text">快速上手，简单易用</span>
+                    </div>
+                    <div class="login-feature">
+                        <div class="login-feature-icon">🔐</div>
+                        <span class="login-feature-text">数据安全有保障</span>
+                    </div>
+                    <div class="login-feature">
+                        <div class="login-feature-icon">💼</div>
+                        <span class="login-feature-text">专业的企业管理工具</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧表单区域 -->
+            <div class="login-form-container">
+                <div class="login-form-card register-form-card">
+                    <div class="login-form-header">
+                        <h2 class="login-form-title">创建账号</h2>
+                        <p class="login-form-desc">请填写以下信息完成注册</p>
+                    </div>
+
+                    <form id="registerForm" class="login-form" novalidate>
+                        <div class="form-group">
+                            <label class="form-label required">用户名</label>
+                            <div class="input-with-icon">
+                                <input type="text" 
+                                       id="username" 
+                                       name="username" 
+                                       class="form-input" 
+                                       placeholder="3-20个字符"
+                                       required
+                                       autocomplete="username">
+                                <span class="input-icon">👤</span>
+                            </div>
+                            <span class="form-error"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">昵称</label>
+                            <div class="input-with-icon">
+                                <input type="text" 
+                                       id="nickname" 
+                                       name="nickname" 
+                                       class="form-input" 
+                                       placeholder="可选，用于显示">
+                                <span class="input-icon">📝</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label required">密码</label>
+                            <div class="input-with-icon">
+                                <input type="password" 
+                                       id="password" 
+                                       name="password" 
+                                       class="form-input" 
+                                       placeholder="6-20个字符"
+                                       required
+                                       autocomplete="new-password">
+                                <span class="input-icon">🔒</span>
+                                <button type="button" class="password-toggle" id="togglePassword">👁</button>
+                            </div>
+                            <span class="form-error"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label required">确认密码</label>
+                            <div class="input-with-icon">
+                                <input type="password" 
+                                       id="confirmPassword" 
+                                       name="confirmPassword" 
+                                       class="form-input" 
+                                       placeholder="请再次输入密码"
+                                       required
+                                       autocomplete="new-password">
+                                <span class="input-icon">🔒</span>
+                            </div>
+                            <span class="form-error"></span>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" id="registerBtn">
+                            <span id="registerBtnText">注 册</span>
+                            <span id="registerBtnLoading" class="hidden">注册中...</span>
+                        </button>
+                    </form>
+
+                    <div class="login-form-footer">
+                        <p>已有账号？<a href="login.html">立即登录</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/components.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('registerForm');
+            const registerBtn = document.getElementById('registerBtn');
+            const registerBtnText = document.getElementById('registerBtnText');
+            const registerBtnLoading = document.getElementById('registerBtnLoading');
+            const togglePassword = document.getElementById('togglePassword');
+            const passwordInput = document.getElementById('password');
+
+            // 密码显示/隐藏
+            togglePassword.addEventListener('click', function() {
+                const type = passwordInput.type === 'password' ? 'text' : 'password';
+                passwordInput.type = type;
+                document.getElementById('confirmPassword').type = type;
+                this.textContent = type === 'password' ? '👁' : '🙈';
+            });
+
+            // 表单提交
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const username = document.getElementById('username').value.trim();
+                const nickname = document.getElementById('nickname').value.trim();
+                const password = document.getElementById('password').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+
+                // 验证
+                let hasError = false;
+                
+                if (!username) {
+                    showFieldError('username', '请输入用户名');
+                    hasError = true;
+                } else if (username.length < 3 || username.length > 20) {
+                    showFieldError('username', '用户名长度为3-20个字符');
+                    hasError = true;
+                } else {
+                    clearFieldError('username');
+                }
+
+                if (!password) {
+                    showFieldError('password', '请输入密码');
+                    hasError = true;
+                } else if (password.length < 6 || password.length > 20) {
+                    showFieldError('password', '密码长度为6-20个字符');
+                    hasError = true;
+                } else {
+                    clearFieldError('password');
+                }
+
+                if (!confirmPassword) {
+                    showFieldError('confirmPassword', '请确认密码');
+                    hasError = true;
+                } else if (password !== confirmPassword) {
+                    showFieldError('confirmPassword', '两次输入的密码不一致');
+                    hasError = true;
+                } else {
+                    clearFieldError('confirmPassword');
+                }
+
+                if (hasError) return;
+
+                // 提交
+                setLoading(true);
+                try {
+                    await AuthAPI.register({ username, password, nickname });
+                    Toast.success('注册成功，请登录');
+                    setTimeout(() => {
+                        window.location.href = '/login.html';
+                    }, 1000);
+                } catch (error) {
+                    Toast.error(error.message || '注册失败，请稍后重试');
+                } finally {
+                    setLoading(false);
+                }
+            });
+
+            function showFieldError(fieldId, message) {
+                const field = document.getElementById(fieldId);
+                const errorEl = field.parentElement.parentElement.querySelector('.form-error');
+                field.classList.add('error');
+                if (errorEl) {
+                    errorEl.textContent = message;
+                    errorEl.style.display = 'block';
+                }
+            }
+
+            function clearFieldError(fieldId) {
+                const field = document.getElementById(fieldId);
+                const errorEl = field.parentElement.parentElement.querySelector('.form-error');
+                field.classList.remove('error');
+                if (errorEl) {
+                    errorEl.style.display = 'none';
+                }
+            }
+
+            function setLoading(loading) {
+                registerBtn.disabled = loading;
+                registerBtnText.classList.toggle('hidden', loading);
+                registerBtnLoading.classList.toggle('hidden', !loading);
+            }
+        });
+    </script>
+</body>
+</html>
